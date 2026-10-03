@@ -46,15 +46,25 @@ func open(thread: String, node_id: String) -> void:
 	_show(node_id)
 
 
+## Shows a line that is not in the story data. Options are {"text", "action": Callable};
+## the action runs after the dialogue closes.
+func say(speaker: String, text: String, options: Array = []) -> void:
+	is_open = true
+	visible = true
+	_present(speaker, text, options)
+
+
 func _show(node_id: String) -> void:
 	var n: Dictionary = Game.story.node(_thread, node_id)
 	Game.state.apply(n.get("effects", {}))
-	_speaker.text = n.get("speaker", "")
-	_speaker.visible = _speaker.text != ""
-	_text.text = n["text"]
-	_options = Game.story.choices(_thread, node_id, Game.state)
-	if _options.is_empty():
-		_options = [{"text": "Leave."}]
+	_present(n.get("speaker", ""), n["text"], Game.story.choices(_thread, node_id, Game.state))
+
+
+func _present(speaker: String, text: String, options: Array) -> void:
+	_speaker.text = speaker
+	_speaker.visible = speaker != ""
+	_text.text = text
+	_options = options if not options.is_empty() else [{"text": "Leave."}]
 	for b in _choices.get_children():
 		_choices.remove_child(b)
 		b.queue_free()
@@ -70,10 +80,12 @@ func _choose(i: int) -> void:
 	Game.state.apply(c.get("effects", {}))
 	if c.has("goto"):
 		_show(c["goto"])
-	else:
-		is_open = false
-		visible = false
-		closed.emit()
+		return
+	is_open = false
+	visible = false
+	closed.emit()
+	if c.has("action"):
+		c["action"].call()
 
 
 func _unhandled_key_input(e: InputEvent) -> void:

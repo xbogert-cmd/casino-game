@@ -1,0 +1,71 @@
+{
+  "id": "house",
+  "objectives": [
+    {
+      "when": {
+        "flags": {
+          "house_2": true,
+          "house_3": false
+        }
+      },
+      "text": "Halloran has something for you."
+    },
+    {
+      "when": {
+        "flags": {
+          "house_1": true,
+          "house_2": false
+        }
+      },
+      "text": "When Mr. Castellano sits at your table, see that he wins."
+    }
+  ],
+  "jobs": [
+    {
+      "id": "castellano",
+      "when": {
+        "flags": {
+          "house_1": true,
+          "house_2": false
+        }
+      },
+      "order": "win",
+      "customer": "friend",
+      "success": {
+        "set": {
+          "house_2": true
+        }
+      }
+    }
+  ],
+  "entries": [
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "house_2": true,
+          "house_3": false
+        }
+      },
+      "node": "h_2"
+    }
+  ],
+  "nodes": {
+    "h_2": {
+      "speaker": "Mr. Halloran",
+      "text": "Castellano was pleased, and when he's pleased the people upstairs are pleased. Fifteen hundred off what you owe. And take this. Gold card. It opens the VIP room, and it means you're one of ours now. Remember which part of that matters.",
+      "effects": {
+        "set": {
+          "house_3": true,
+          "gold_card": true
+        },
+        "add": {
+          "debt": -1500
+        },
+        "rel": {
+          "manager": 1
+        }
+      }
+    }
+  }
+}

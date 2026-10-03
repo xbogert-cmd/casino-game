@@ -2,6 +2,7 @@ extends Node3D
 ## The public casino floor: one room, built from primitives and lit with neon.
 
 const B := preload("res://world/build.gd")
+const Slot := preload("res://tables/slot_machine.gd")
 
 const W := 24.0
 const D := 18.0
@@ -9,8 +10,7 @@ const H := 5.0
 const HW := W / 2.0
 const HD := D / 2.0
 
-## World positions of the slot machines, for ambient chimes.
-var slot_positions: Array[Vector3] = []
+var slots: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -146,30 +146,14 @@ func _pillar(pos: Vector3) -> void:
 	B.ring(self, 0.44, 0.05, pos + Vector3(0, 3.5, 0), B.neon(B.MAGENTA, 4.0))
 
 
-## A slot machine built facing +Z, then turned by `yaw`.
+## Machines near the exit doors are loose: people walking in should see winners.
 func _slot(pos: Vector3, yaw: float) -> void:
-	var s := Node3D.new()
+	var s := Slot.new()
 	s.position = pos
 	s.rotation.y = yaw
+	s.loose = pos.z >= 3.0
 	add_child(s)
-	slot_positions.append(pos + Vector3(0, 1.2, 0))
-	var shell := B.mat(Color(0.05, 0.05, 0.07), 0.25, 0.6)
-	B.box(s, Vector3(0.78, 1.75, 0.6), Vector3(0, 0.875, 0), shell, true)
-	var topper := B.neon(Color.from_hsv(randf(), 0.85, 1.0), 2.5)
-	B.box(s, Vector3(0.8, 0.32, 0.5), Vector3(0, 1.93, 0.02), topper)
-	B.box(s, Vector3(0.62, 0.56, 0.03), Vector3(0, 1.25, 0.305), B.neon(Color(0.08, 0.03, 0.2), 1.0))
-	for col in 3:
-		for row in 3:
-			B.box(s, Vector3(0.15, 0.13, 0.02), Vector3(-0.19 + col * 0.19, 1.08 + row * 0.17, 0.325),
-				B.neon(Color.from_hsv(randf(), 0.8, 1.0), 1.8))
-	B.box(s, Vector3(0.78, 0.08, 0.3), Vector3(0, 0.85, 0.42), shell)
-	B.box(s, Vector3(0.12, 0.03, 0.08), Vector3(0.2, 0.9, 0.45), B.neon(Color(1, 0.2, 0.2), 2.0))
-	B.cyl(s, 0.18, 0.07, Vector3(0, 0.62, 1.0), B.mat(Color(0.35, 0.03, 0.08), 0.5))
-	B.cyl(s, 0.03, 0.6, Vector3(0, 0.3, 1.0), B.brass())
-	var tw := create_tween().set_loops()
-	var t := randf_range(0.4, 1.3)
-	tw.tween_property(topper, "emission_energy_multiplier", 4.5, t)
-	tw.tween_property(topper, "emission_energy_multiplier", 1.5, t)
+	slots.append(s)
 
 
 func _bar() -> void:

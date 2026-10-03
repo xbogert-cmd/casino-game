@@ -3,6 +3,9 @@ extends RefCounted
 ##   "entries": which node opens when you interact with someone, first match wins
 ##   "nodes": dialogue nodes with text, optional effects and choices
 ##   "objectives": the objective line to show, first match wins
+##   "jobs": shifts the thread forces on a night
+##   "texts": phone messages sent once when their condition becomes true
+## Threads are checked in the order of state.threads, so newer threads win.
 
 var threads := {}
 
@@ -45,6 +48,26 @@ func objective(state) -> String:
 			if state.check(o.get("when", {})):
 				return o["text"]
 	return ""
+
+
+## A job a thread forces on tonight's shift, or {}. Jobs look like
+## {"id", "when", "order", "customer", "event", "success": effects, "failure": effects}.
+func job(state) -> Dictionary:
+	for id in state.threads:
+		for j in threads[id].get("jobs", []):
+			if state.check(j.get("when", {})):
+				return j
+	return {}
+
+
+## Delivers story texts whose condition is now true. Each is sent once.
+func send_texts(state) -> void:
+	for id in state.threads.duplicate():
+		for t in threads[id].get("texts", []):
+			if not state.sent.has(t["id"]) and state.check(t.get("when", {})):
+				state.sent[t["id"]] = true
+				state.text(t["from"], t["text"])
+				state.apply(t.get("effects", {}))
 
 
 ## Broken links in the data: entries or choices that point at missing nodes.

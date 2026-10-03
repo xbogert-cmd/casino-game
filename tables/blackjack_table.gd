@@ -4,17 +4,16 @@ extends Node3D
 
 signal sat
 signal left
-signal picked(i: int)
 
 const B := preload("res://world/build.gd")
 const Style := preload("res://ui/style.gd")
 const Shoe := preload("res://logic/shoe.gd")
 const Blackjack := preload("res://logic/blackjack.gd")
+const Night := preload("res://logic/night.gd")
+const ChoicePanel := preload("res://ui/choice_panel.gd")
 
 const TOP := 0.94
 const BETS := [10, 20, 50, 100, 200, 500]
-const HANDS := 6
-const CUSTOMER_BET := 100
 const RIG_DEAL_HEAT := 25.0
 const RIG_CARD_HEAT := 12.0
 const GOOD := Color(0.5, 1.0, 0.6)
@@ -23,17 +22,15 @@ const BAD := Color(1.0, 0.45, 0.45)
 var dealer_mode := false
 var accent := B.MAGENTA
 var player: Node
-var customer_stack := 500
-var hand_no := 0
+var panel := ChoicePanel.new()
 
 var _shoe: Shoe
 var _bj: Blackjack
 var _bet_i := 2
 var _hands := [[], []]  # card nodes: 0 = player or customer, 1 = dealer
 var _chips: Array[Node] = []
-var _layer := CanvasLayer.new()
 var _info: Label
-var _buttons: HBoxContainer
+var _who := ""  # the customer's short name while dealing
 var _face := B.mat(Color(0.8, 0.79, 0.75), 0.6)
 var _back := B.mat(Color(0.22, 0.02, 0.06), 0.5)
 var _font := SystemFont.new()
@@ -44,21 +41,23 @@ func _ready() -> void:
 	_bj = Blackjack.new(_shoe)
 	_font.font_names = PackedStringArray(["Arial Unicode MS", "Apple Symbols", "Arial"])
 	_build_table()
-	_build_ui()
+	panel.accent = accent
+	add_child(panel)
+	_info = panel.info
 
 
 func prompt() -> String:
 	if not dealer_mode:
 		return "Play blackjack"
-	var f: Dictionary = Game.state.flags
-	if not f.get("mission_given", false) or f.get("shift_done", false) or f.get("customer_warned", false):
+	var t: Dictionary = Game.state.tonight
+	if not t.get("briefed", false) or t.get("shift", "pending") != "pending":
 		return ""
 	return "Deal at table two"
 
 
 func interact() -> void:
 	sat.emit()
-	_layer.visible = true
+	panel.visible = true
 	var eye := to_global(Vector3(0, 1.9, -1.2) if dealer_mode else Vector3(0, 1.6, 1.4))
 	var aim := to_global(Vector3(0, TOP, 0.05 if dealer_mode else -0.15))
 	player.sit(Transform3D(Basis.IDENTITY, eye).looking_at(aim))
@@ -67,7 +66,7 @@ func interact() -> void:
 	else:
 		await _play_loop()
 	_clear()
-	_layer.visible = false
+	panel.visible = false
 	player.stand()
 	left.emit()
 
@@ -78,7 +77,7 @@ func _play_loop() -> void:
 	while true:
 		var bet: int = BETS[_bet_i]
 		_info.text = "Table one.  Your bet: %s" % Game.money(bet)
-		match await _ask(["Deal", "Lower bet", "Raise bet", "Leave the table"]):
+		match await panel.ask(["Deal", "Lower bet", "Raise bet", "Leave the table"]):
 			0:
 				if Game.state.bankroll < bet:
 					Game.toast.emit("You can't cover that bet.", BAD)
@@ -99,7 +98,7 @@ func _player_hand(bet: int) -> void:
 		var options := ["Hit", "Stand"]
 		if _bj.can_double() and Game.state.bankroll >= bet * 2:
 			options.append("Double")
-		match await _ask(options):
+		match await panel.ask(options):
 			0:
 				_bj.hit()
 				await _deal_card(0, _bj.player[-1])
@@ -132,73 +131,87 @@ func _player_hand(bet: int) -> void:
 		_:
 			Game.sfx("lose")
 			Game.toast.emit(("Bust  " if _bj.result == "bust" else "House wins  ") + Game.money(pay), BAD)
-	await _wait(1.8)
+	await panel.wait(1.8)
 	_clear()
 
 
 # --- Dealing to the customer ---
 
+## Progress is kept in Game.state.tonight, so stepping away or saving keeps the shift.
 func _deal_loop() -> void:
-	while hand_no < HANDS and customer_stack >= CUSTOMER_BET:
-		_info.text = "Hand %d of %d.  Teddy has %s and bets %s." % [
-			hand_no + 1, HANDS, Game.money(customer_stack), Game.money(CUSTOMER_BET)]
-		match await _ask(["Deal straight", "Stack the deal against him (+25 heat)", "Stack the deal for him (+25 heat)", "Step away"]):
+	var c: Dictionary = Game.customer()
+	var t: Dictionary = Game.state.tonight
+	_who = c["name"] if c["name"].begins_with("Mr.") else c["name"].get_slice(" ", 0)
+	if not t.has("stack"):
+		t.merge({"stack": c["stack"], "start": c["stack"], "hands": 0, "stacked": 0})
+	var deal_heat := RIG_DEAL_HEAT * Game.heat_mult()
+	var caught := false
+	while t["hands"] < Night.HANDS and t["stack"] >= c["bet"]:
+		_info.text = "Hand %d of %d.  %s has %s and bets %s." % [
+			t["hands"] + 1, Night.HANDS, _who, Game.money(int(t["stack"])), Game.money(c["bet"])]
+		match await panel.ask(["Deal straight", "Stack the deal against the player (+%d heat)" % deal_heat,
+				"Stack the deal for the player (+%d heat)" % deal_heat, "Step away"]):
 			1:
-				_shoe.stack([9, 12, 5, 11])  # he gets 16, the house gets 20
-				Game.state.add("heat", RIG_DEAL_HEAT)
+				_shoe.stack([9, 12, 5, 11])  # the player gets 16, the house gets 20
+				_cheated(deal_heat)
 			2:
-				_shoe.stack([10, 9, 12, 5])  # he gets 20, the house gets 16
-				Game.state.add("heat", RIG_DEAL_HEAT)
+				_shoe.stack([10, 9, 12, 5])  # the player gets 20, the house gets 16
+				_cheated(deal_heat)
 			3:
 				return
-		hand_no += 1
-		await _customer_hand()
+		t["hands"] += 1
+		await _customer_hand(c)
 		if Game.check_caught():
-			Game.state.flags["caught_dealing"] = true
+			caught = true
 			break
-	Game.state.flags["shift_done"] = true
-	Game.state.flags["customer_lost"] = customer_stack <= 200
-	Game.state.flags["customer_won"] = customer_stack >= 800
+	Game.finish_shift(caught)
 
 
-func _customer_hand() -> void:
-	await _start_hand(CUSTOMER_BET)
+func _cheated(heat: float) -> void:
+	Game.state.add("heat", heat)
+	Game.state.tonight["stacked"] += 1
+
+
+func _customer_hand(c: Dictionary) -> void:
+	var card_heat := RIG_CARD_HEAT * Game.heat_mult()
+	await _start_hand(c["bet"])
 	while _bj.phase == Blackjack.Phase.PLAYER:
-		if not Blackjack.should_hit(_bj.player, _bj.dealer[0]):
-			_info.text = _hands_text(true) + "\nTeddy waves it off. He stands."
-			await _wait(1.1)
+		if not Blackjack.wants_card(_bj.player, _bj.dealer[0], c["style"]):
+			_info.text = _hands_text(true) + "\n%s waves it off and stands." % _who
+			await panel.wait(1.1)
 			_bj.stand()
 			break
-		_info.text = _hands_text(true) + "\nTeddy taps the felt. He wants a card."
-		var c := await _ask(["Deal the next card", "Deal him a bad card (+12 heat)", "Deal him a good card (+12 heat)"])
-		if c > 0:
-			_shoe.stack([Blackjack.pick_rank(_bj.player, c == 2)])
-			Game.state.add("heat", RIG_CARD_HEAT)
+		_info.text = _hands_text(true) + "\n%s taps the felt for another card." % _who
+		var pick := await panel.ask(["Deal the next card", "Deal a bad card (+%d heat)" % card_heat, "Deal a good card (+%d heat)" % card_heat])
+		if pick > 0:
+			_shoe.stack([Blackjack.pick_rank(_bj.player, pick == 2)])
+			_cheated(card_heat)
 		_bj.hit()
 		await _deal_card(0, _bj.player[-1])
 	await _reveal_hole()
 	while _bj.dealer_must_draw():
 		_info.text = _hands_text(false) + "\nThe house has to draw."
-		var c := await _ask(["Draw the next card", "Draw a good card for the house (+12 heat)", "Draw a bad card for the house (+12 heat)"])
-		if c > 0:
-			_shoe.stack([Blackjack.pick_rank(_bj.dealer, c == 1)])
-			Game.state.add("heat", RIG_CARD_HEAT)
+		var pick := await panel.ask(["Draw the next card", "Draw a good card for the house (+%d heat)" % card_heat,
+			"Draw a bad card for the house (+%d heat)" % card_heat])
+		if pick > 0:
+			_shoe.stack([Blackjack.pick_rank(_bj.dealer, pick == 1)])
+			_cheated(card_heat)
 		_bj.dealer_draw()
 		await _deal_card(1, _bj.dealer[-1])
 	_bj.finish()
 	_info.text = _hands_text(false)
 
 	var pay := _bj.payout()
-	customer_stack += pay
+	Game.state.tonight["stack"] += pay
 	if pay > 0:
 		Game.sfx("win")
-		Game.toast.emit("Teddy wins %s" % Game.money(pay), GOOD)
+		Game.toast.emit("%s wins %s" % [_who, Game.money(pay)], GOOD)
 	elif pay < 0:
 		Game.sfx("lose")
-		Game.toast.emit("Teddy loses %s" % Game.money(-pay), BAD)
+		Game.toast.emit("%s loses %s" % [_who, Game.money(-pay)], BAD)
 	else:
 		Game.toast.emit("Push", Color.WHITE)
-	await _wait(1.8)
+	await panel.wait(1.8)
 	_clear()
 
 
@@ -208,7 +221,7 @@ func _start_hand(bet: int) -> void:
 	if _shoe.needs_shuffle():
 		_shoe.shuffle()
 		_info.text = "Shuffling the shoe..."
-		await _wait(0.8)
+		await panel.wait(0.8)
 	_bj.deal(bet)
 	_stack_chips(bet)
 	await _deal_card(0, _bj.player[0])
@@ -218,37 +231,10 @@ func _start_hand(bet: int) -> void:
 
 
 func _hands_text(hide_hole: bool) -> String:
-	var them := "Teddy" if dealer_mode else "You"
+	var them := _who if dealer_mode else "You"
 	var house := "House (you)" if dealer_mode else "Dealer"
 	var d := "%d + ?" % Shoe.value(_bj.dealer[0]) if hide_hole else str(Blackjack.total(_bj.dealer))
 	return "%s: %d          %s: %s" % [them, Blackjack.total(_bj.player), house, d]
-
-
-## Shows numbered buttons and waits for one to be picked.
-func _ask(options: Array) -> int:
-	for i in options.size():
-		var b := Style.button("%d   %s" % [i + 1, options[i]])
-		b.pressed.connect(picked.emit.bind(i))
-		_buttons.add_child(b)
-	var choice: int = await picked
-	for b in _buttons.get_children():
-		_buttons.remove_child(b)
-		b.queue_free()
-	Game.sfx("click")
-	return choice
-
-
-func _unhandled_key_input(e: InputEvent) -> void:
-	if not _layer.visible or not e.pressed or e.echo:
-		return
-	var i: int = e.keycode - KEY_1
-	if i >= 0 and i < _buttons.get_child_count():
-		get_viewport().set_input_as_handled()
-		picked.emit(i)
-
-
-func _wait(seconds: float) -> void:
-	await get_tree().create_timer(seconds).timeout
 
 
 # --- Cards and chips on the felt ---
@@ -283,7 +269,7 @@ func _deal_card(side: int, card: int, face_up := true) -> void:
 	var tw := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(n, "position", _slot(side, _hands[side].size() - 1), 0.22)
 	await tw.finished
-	await _wait(0.14)
+	await panel.wait(0.14)
 
 
 func _reveal_hole() -> void:
@@ -297,7 +283,7 @@ func _reveal_hole() -> void:
 	tw = create_tween()
 	tw.tween_property(n, "scale:x", 1.0, 0.1)
 	await tw.finished
-	await _wait(0.3)
+	await panel.wait(0.3)
 
 
 func _stack_chips(amount: int) -> void:
@@ -361,27 +347,3 @@ func _build_table() -> void:
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(2.4, 1.0, 1.8)
 	B.body(self, shape, Vector3(0, 0.5, 0)).set_meta("target", self)
-
-
-func _build_ui() -> void:
-	_layer.visible = false
-	add_child(_layer)
-	var panel := Style.panel(accent)
-	_layer.add_child(panel)
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_top = 1.0
-	panel.anchor_bottom = 1.0
-	panel.offset_bottom = -36
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 12)
-	panel.add_child(col)
-	_info = Style.label("", 24)
-	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_buttons = HBoxContainer.new()
-	_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	_buttons.add_theme_constant_override("separation", 10)
-	col.add_child(_info)
-	col.add_child(_buttons)

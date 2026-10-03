@@ -1,53 +1,204 @@
 {
   "id": "opening",
   "objectives": [
-    {"when": {"flags": {"opening_done": true}}, "text": "The night is over. Play table one, or look around."},
-    {"when": {"flags": {"customer_warned": true}}, "text": "Teddy is gone. Report to Halloran."},
-    {"when": {"flags": {"shift_done": true}}, "text": "Shift over. Report to Halloran."},
-    {"when": {"flags": {"mission_given": true}}, "text": "Deal at table two, the one under the blue ring. Halloran wants Teddy Briggs to lose."},
-    {"when": {}, "text": "Find the pit boss, Mr. Halloran, at the back of the floor."}
+    {
+      "when": {
+        "flags": {
+          "opening_done": true
+        }
+      },
+      "text": "The night is over. Leave by the exit doors when you are ready."
+    },
+    {
+      "when": {
+        "flags": {
+          "customer_warned": true
+        }
+      },
+      "text": "Teddy is gone. Report to Halloran."
+    },
+    {
+      "when": {
+        "flags": {
+          "shift_done": true
+        }
+      },
+      "text": "Shift over. Report to Halloran."
+    },
+    {
+      "when": {
+        "flags": {
+          "mission_given": true
+        }
+      },
+      "text": "Deal at table two, the one under the blue ring. Halloran wants Teddy Briggs to lose."
+    },
+    {
+      "when": {},
+      "text": "Find the pit boss, Mr. Halloran, at the back of the floor."
+    }
   ],
   "entries": [
-    {"who": "manager", "when": {"flags": {"opening_done": true}}, "node": "m_done"},
-    {"who": "manager", "when": {"flags": {"shift_done": true, "caught_dealing": true}}, "node": "m_caught"},
-    {"who": "manager", "when": {"flags": {"customer_warned": true}}, "node": "m_warned"},
-    {"who": "manager", "when": {"flags": {"shift_done": true, "customer_lost": true}}, "node": "m_good"},
-    {"who": "manager", "when": {"flags": {"shift_done": true, "customer_won": true}}, "node": "m_won"},
-    {"who": "manager", "when": {"flags": {"shift_done": true}}, "node": "m_even"},
-    {"who": "manager", "when": {"flags": {"mission_given": true}}, "node": "m_wait"},
-    {"who": "manager", "node": "m_intro"},
-
-    {"who": "customer", "when": {"flags": {"shift_done": true, "customer_lost": true}}, "node": "c_lost"},
-    {"who": "customer", "when": {"flags": {"shift_done": true, "customer_won": true}}, "node": "c_won"},
-    {"who": "customer", "when": {"flags": {"shift_done": true}}, "node": "c_even"},
-    {"who": "customer", "when": {"flags": {"mission_given": true}}, "node": "c_talk"},
-    {"who": "customer", "node": "c_idle"},
-
-    {"who": "ledger", "when": {"flags": {"has_evidence": true}}, "node": "l_taken"},
-    {"who": "ledger", "when": {"flags": {"mission_given": true}}, "node": "l_look"},
-    {"who": "ledger", "node": "l_idle"},
-
-    {"who": "dealer", "when": {"flags": {"opening_done": true}}, "node": "d_after"},
-    {"who": "dealer", "when": {"flags": {"mission_given": true}}, "node": "d_warn"},
-    {"who": "dealer", "node": "d_idle"},
-
-    {"who": "guard", "node": "g_vip"},
-    {"who": "bartender", "node": "b_drinks"}
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "opening_done": true
+        }
+      },
+      "node": "m_done"
+    },
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "shift_done": true,
+          "caught_dealing": true
+        }
+      },
+      "node": "m_caught"
+    },
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "customer_warned": true
+        }
+      },
+      "node": "m_warned"
+    },
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "shift_done": true,
+          "customer_lost": true
+        }
+      },
+      "node": "m_good"
+    },
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "shift_done": true,
+          "customer_won": true
+        }
+      },
+      "node": "m_won"
+    },
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "shift_done": true
+        }
+      },
+      "node": "m_even"
+    },
+    {
+      "who": "manager",
+      "when": {
+        "flags": {
+          "mission_given": true
+        }
+      },
+      "node": "m_wait"
+    },
+    {
+      "who": "manager",
+      "node": "m_intro"
+    },
+    {
+      "who": "customer",
+      "when": {
+        "flags": {
+          "shift_done": true,
+          "customer_lost": true
+        }
+      },
+      "node": "c_lost"
+    },
+    {
+      "who": "customer",
+      "when": {
+        "flags": {
+          "shift_done": true,
+          "customer_won": true
+        }
+      },
+      "node": "c_won"
+    },
+    {
+      "who": "customer",
+      "when": {
+        "flags": {
+          "shift_done": true
+        }
+      },
+      "node": "c_even"
+    },
+    {
+      "who": "customer",
+      "when": {
+        "flags": {
+          "mission_given": true
+        }
+      },
+      "node": "c_talk"
+    },
+    {
+      "who": "customer",
+      "node": "c_idle"
+    },
+    {
+      "who": "dealer",
+      "when": {
+        "flags": {
+          "mission_given": true
+        }
+      },
+      "node": "d_warn"
+    }
   ],
   "nodes": {
     "m_intro": {
       "speaker": "Mr. Halloran",
       "text": "You're the new dealer. Good. Table two, under the blue ring. The man in the grey jacket is Teddy Briggs, and he has been lucky here three weeks running. Tonight he leaves light. Six hands. Do that and I take two thousand off what you owe Sal.",
       "choices": [
-        {"text": "Understood.", "effects": {"set": {"mission_given": true}}},
-        {"text": "What if the cards just fall his way?", "goto": "m_threat"}
+        {
+          "text": "Understood.",
+          "effects": {
+            "set": {
+              "mission_given": true
+            },
+            "tonight": {
+              "briefed": true
+            }
+          }
+        },
+        {
+          "text": "What if the cards just fall his way?",
+          "goto": "m_threat"
+        }
       ]
     },
     "m_threat": {
       "speaker": "Mr. Halloran",
       "text": "You hold the shoe. The cards fall where you put them. Just don't be greedy about it. The cameras count how often a dealer gets lucky, and I won't cover for you.",
-      "effects": {"set": {"mission_given": true}},
-      "choices": [{"text": "Understood."}]
+      "effects": {
+        "set": {
+          "mission_given": true
+        },
+        "tonight": {
+          "briefed": true
+        }
+      },
+      "choices": [
+        {
+          "text": "Understood."
+        }
+      ]
     },
     "m_wait": {
       "speaker": "Mr. Halloran",
@@ -56,33 +207,82 @@
     "m_good": {
       "speaker": "Mr. Halloran",
       "text": "He walked out light. Clean enough. That's two thousand off your tab with Sal. Don't thank me. You'll be doing it again tomorrow.",
-      "effects": {"set": {"opening_done": true, "outcome": "followed"}, "add": {"debt": -2000}, "rel": {"manager": 1}}
+      "effects": {
+        "set": {
+          "opening_done": true,
+          "outcome": "followed"
+        },
+        "add": {
+          "debt": -2000
+        },
+        "rel": {
+          "manager": 1
+        }
+      }
     },
     "m_won": {
       "speaker": "Mr. Halloran",
       "text": "He left with our money in his pocket. I watched you deal it to him. I don't know yet if you're stupid or soft, and I don't like either.",
-      "effects": {"set": {"opening_done": true, "outcome": "helped"}, "add": {"heat": 20}, "rel": {"manager": -2, "customer": 2}}
+      "effects": {
+        "set": {
+          "opening_done": true,
+          "outcome": "helped"
+        },
+        "add": {
+          "heat": 20
+        },
+        "rel": {
+          "manager": -2,
+          "customer": 2
+        }
+      }
     },
     "m_even": {
       "speaker": "Mr. Halloran",
       "text": "He's still got chips. I asked for one thing. Sal gets his full payment this week, and you get another chance tomorrow. One.",
-      "effects": {"set": {"opening_done": true, "outcome": "failed"}, "rel": {"manager": -1}}
+      "effects": {
+        "set": {
+          "opening_done": true,
+          "outcome": "failed"
+        },
+        "rel": {
+          "manager": -1
+        }
+      }
     },
     "m_caught": {
       "speaker": "Mr. Halloran",
       "text": "Security pulled the tape before I could. You were seen. I told them you're new and clumsy. That is the last favor you get from me.",
-      "effects": {"set": {"opening_done": true, "outcome": "caught"}, "rel": {"manager": -1}}
+      "effects": {
+        "set": {
+          "opening_done": true,
+          "outcome": "caught"
+        },
+        "rel": {
+          "manager": -1
+        }
+      }
     },
     "m_warned": {
       "speaker": "Mr. Halloran",
       "text": "Briggs left before a card was dealt. He talked to you, then he walked. Funny. I'm going to think about that.",
-      "effects": {"set": {"opening_done": true, "outcome": "warned"}, "add": {"heat": 15}, "rel": {"manager": -1}}
+      "effects": {
+        "set": {
+          "opening_done": true,
+          "outcome": "warned"
+        },
+        "add": {
+          "heat": 15
+        },
+        "rel": {
+          "manager": -1
+        }
+      }
     },
     "m_done": {
       "speaker": "Mr. Halloran",
-      "text": "Go home. Same time tomorrow."
+      "text": "Go home. The exit is behind you. Same time tomorrow."
     },
-
     "c_idle": {
       "speaker": "Teddy Briggs",
       "text": "Waiting on a dealer. You the new one? Go ask Halloran where he wants you."
@@ -91,14 +291,32 @@
       "speaker": "Teddy Briggs",
       "text": "There you are. Deal me in. I need a good night. I owe a man named Sal eleven grand, and he doesn't take excuses.",
       "choices": [
-        {"text": "Sit tight. I'll deal."},
-        {"text": "Walk away, Teddy. Tonight the table is against you.", "goto": "c_warned"}
+        {
+          "text": "Sit tight. I'll deal."
+        },
+        {
+          "text": "Walk away, Teddy. Tonight the table is against you.",
+          "goto": "c_warned"
+        }
       ]
     },
     "c_warned": {
       "speaker": "Teddy Briggs",
       "text": "...You're serious. They'd do that? All right. All right. I'm gone. I owe you one, and I pay what I owe.",
-      "effects": {"set": {"customer_warned": true}, "add": {"heat": 10}, "rel": {"customer": 2}}
+      "effects": {
+        "set": {
+          "customer_warned": true
+        },
+        "add": {
+          "heat": 10
+        },
+        "rel": {
+          "customer": 2
+        },
+        "tonight": {
+          "shift": "skipped"
+        }
+      }
     },
     "c_lost": {
       "speaker": "Teddy Briggs",
@@ -112,49 +330,9 @@
       "speaker": "Teddy Briggs",
       "text": "Not my night, not theirs either. I'll take it."
     },
-
-    "l_idle": {
-      "speaker": "",
-      "text": "A ledger on the pit stand. Not your business. Not yet."
-    },
-    "l_look": {
-      "speaker": "",
-      "text": "The pit ledger, left open. Payout lines for hands that were never dealt, each one initialled D.H. Halloran is ten feet away.",
-      "choices": [
-        {"text": "Photograph the pages. (+30 heat)", "goto": "l_got"},
-        {"text": "Leave it."}
-      ]
-    },
-    "l_got": {
-      "speaker": "",
-      "text": "Eleven pages on your phone. Halloran hasn't looked up. You think.",
-      "effects": {"set": {"has_evidence": true}, "add": {"heat": 30}}
-    },
-    "l_taken": {
-      "speaker": "",
-      "text": "The ledger is where you found it. The pictures are in your pocket."
-    },
-
-    "d_idle": {
-      "speaker": "Mara",
-      "text": "Sit down if you're playing. Minimum is ten."
-    },
     "d_warn": {
       "speaker": "Mara",
       "text": "Halloran put you on Briggs? Then listen. The dome over table two watches the shoe hand. One stacked deal, they shrug. Every deal, they come for you. Space it out."
-    },
-    "d_after": {
-      "speaker": "Mara",
-      "text": "First night down. It doesn't get easier. You just get quieter about it."
-    },
-
-    "g_vip": {
-      "speaker": "Security",
-      "text": "VIP room. Members, and staff with a gold card. You're neither."
-    },
-    "b_drinks": {
-      "speaker": "Bartender",
-      "text": "Drinks are free while you're playing. Ever wonder why?"
     }
   }
 }

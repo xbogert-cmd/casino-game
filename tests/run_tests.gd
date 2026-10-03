@@ -5,6 +5,8 @@ const Shoe := preload("res://logic/shoe.gd")
 const Blackjack := preload("res://logic/blackjack.gd")
 const StoryState := preload("res://logic/story_state.gd")
 const Story := preload("res://logic/story.gd")
+const Night := preload("res://logic/night.gd")
+const Slots := preload("res://logic/slots.gd")
 
 var _fails := 0
 var _checks := 0
@@ -18,6 +20,11 @@ func _init() -> void:
 	_test_state()
 	_test_story()
 	_test_house_edge()
+	_test_save_and_clocks()
+	_test_threads()
+	_test_night()
+	_test_sal()
+	_test_slots()
 	print("%d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)
 
@@ -207,3 +214,139 @@ func _test_house_edge() -> void:
 	var edge := -net / (hands * 10.0)
 	print("house edge over %d hands: %.2f%%" % [hands, edge * 100.0])
 	ok(edge > -0.01 and edge < 0.045, "house edge is between -1%% and 4.5%%, got %.4f" % edge)
+
+
+func _test_save_and_clocks() -> void:
+	var s := StoryState.new()
+	s.apply({"set": {"a": true}, "tonight": {"briefed": true}, "clock": {"sal": 2, "x": 1}, "text": {"from": "Sal", "text": "hi"}, "start": "floor"})
+	s.apply({"start": "house"})
+	ok(s.threads == ["house", "floor"], "a new thread goes in front of older ones")
+	ok(s.tonight["briefed"] and s.unread == 1 and s.messages[0]["from"] == "Sal", "effects set tonight values and send texts")
+	s.bankroll = 1234
+	s.night = 3
+	var copy := StoryState.new()
+	copy.from_dict(JSON.parse_string(JSON.stringify(s.to_dict())))
+	ok(copy.bankroll == 1234 and copy.night == 3 and typeof(copy.night) == TYPE_INT, "save keeps whole numbers whole")
+	ok(copy.flags["a"] and copy.threads == s.threads and copy.clocks["sal"] == 2, "save keeps flags, threads and clocks")
+	ok(s.tick_clocks() == ["x"] and s.flags["x_due"] and s.clocks["sal"] == 1, "a clock that runs out sets its due flag")
+	s.apply({"clock_add": {"sal": 2, "gone": 5}})
+	ok(s.clocks["sal"] == 3 and not s.clocks.has("gone"), "clock_add only extends clocks that are running")
+	ok(s.check({"rel_min": {"manager": 0}}) and not s.check({"rel_min": {"manager": 1}}), "rel_min condition")
+	ok(s.check({"min": {"night": 3}}) and not s.check({"min": {"night": 4}}), "night can be used in conditions")
+
+
+func _test_threads() -> void:
+	var story := Story.new()
+	story.load_dir("res://data/threads")
+	for id in ["opening", "floor", "house", "inspector"]:
+		ok(story.threads.has(id), "thread %s loads" % id)
+	for p in story.problems():
+		ok(false, p)
+
+	var s := StoryState.new()
+	s.threads.assign(["floor"])
+	s.night = 2
+	ok(story.entry("manager", s).is_empty(), "no special manager scene without his trust")
+	s.rel["manager"] = 1
+	ok(story.entry("manager", s)["node"] == "h_offer", "a trusted dealer gets the house offer")
+	s.apply(story.node("floor", "h_offer")["choices"][0]["effects"])
+	ok(s.threads[0] == "house" and story.job(s)["customer"] == "friend", "accepting starts the house thread and its job")
+	ok(story.entry("manager", s).is_empty(), "the offer is made once")
+	s.apply(story.job(s)["success"])
+	ok(story.job(s).is_empty() and story.entry("manager", s)["node"] == "h_2", "finishing the job unlocks the next scene")
+
+	s = StoryState.new()
+	s.threads.assign(["floor"])
+	s.flags["has_evidence"] = true
+	story.send_texts(s)
+	ok(s.messages.is_empty(), "no text about the ledger on night one")
+	s.night = 2
+	story.send_texts(s)
+	story.send_texts(s)
+	ok(s.messages.size() == 1 and s.threads[0] == "inspector", "the ledger text arrives once and starts the inspector thread")
+	ok(story.entry("ines", s)["node"] == "i_1", "with evidence, Ines takes the pictures")
+	s.apply(story.node("inspector", "i_1")["effects"])
+	ok(story.job(s)["event"] == "audit" and story.job(s)["order"] == "straight", "Ines forces an audit night dealt straight")
+	s.apply(story.node("inspector", "x_sold")["effects"])
+	ok(not s.threads.has("inspector") and s.debt == 17000, "selling Ines out ends her thread and cuts the debt")
+
+
+func _test_night() -> void:
+	var story := Story.new()
+	story.load_dir("res://data/threads")
+	var s := StoryState.new()
+	s.threads.assign(["floor"])
+	ok(Night.plan(s, story, _rng(5)) == Night.plan(s, story, _rng(5)), "same seed gives the same night")
+	var seen := {}
+	for i in 200:
+		var p := Night.plan(s, story, _rng(i))
+		seen[p["event"]] = true
+		seen[p["customer"]] = true
+		ok(Night.CUSTOMERS.has(p["customer"]) and Night.EVENTS.has(p["event"]) and Night.ORDERS.has(p["order"]), "plan %d is valid" % i)
+		if p["event"] == "audit":
+			ok(p["order"] == "straight", "audit nights are dealt straight")
+	ok(seen.size() == Night.EVENTS.size() + Night.WALK_INS.size(), "every event and walk-in customer turns up")
+	ok(not seen.has("friend") and not seen.has("teddy"), "story customers never walk in at random")
+
+	s.flags["house_1"] = true
+	s.threads.push_front("house")
+	var forced := Night.plan(s, story, _rng(1))
+	ok(forced["customer"] == "friend" and forced["order"] == "win", "a thread job overrides the random plan")
+
+	var p := {"customer": "marge", "order": "lose", "event": "quiet", "job": {}}
+	ok(Night.settle(p, 300, 150, 2)["ok"] and Night.settle(p, 300, 150, 2)["effects"]["add"]["debt"] == -1000, "taking half the stack fulfils a lose order")
+	ok(not Night.settle(p, 300, 200, 0)["ok"], "taking less than half does not")
+	ok(Night.settle(p, 300, 200, 0)["effects"]["add"]["bankroll"] == Night.WAGE, "a failed order still pays the wage")
+	p["event"] = "high_roller"
+	ok(Night.settle(p, 1500, 0, 0)["effects"]["add"]["debt"] == -2000 and Night.customer(p)["stack"] == 1500, "a high roller doubles the reward and plays five times the stakes")
+	p = {"customer": "friend", "order": "win", "event": "quiet", "job": {}}
+	ok(Night.settle(p, 1000, 1500, 3)["ok"] and not Night.settle(p, 1000, 1400, 3)["ok"], "a win order needs the stack up by half")
+	p["order"] = "straight"
+	ok(Night.settle(p, 1000, 900, 0)["ok"] and not Night.settle(p, 1000, 900, 1)["ok"], "a straight order fails on any stacked card")
+	ok(Blackjack.wants_card([9, 1], 5, "reckless") and not Blackjack.wants_card([9, 1], 9, "cautious"), "play styles differ on 12")
+
+
+func _test_sal() -> void:
+	var s := StoryState.new()
+	s.heat = 60
+	s.tonight["x"] = 1
+	Night.end_night(s, _rng(1))
+	ok(s.night == 2 and s.heat == 30 and s.tonight.is_empty(), "a new night halves the heat and clears the night's scratch")
+	ok(s.installment == 1500 and s.clocks["sal"] == 3 and s.messages.size() == 1, "Sal makes his first demand on night two")
+	s.bankroll = 1000
+	ok(Night.pay_sal(s) == 1000 and s.bankroll == 0 and s.installment == 500 and s.debt == 19000, "paying Sal comes off the installment and the debt")
+	Night.borrow(s)
+	ok(s.bankroll == 500 and s.debt == 19750, "a loan costs more than it gives")
+	Night.end_night(s, _rng(1))
+	Night.end_night(s, _rng(1))
+	ok(s.missed == 0 and s.clocks["sal"] == 1, "nothing happens before the deadline")
+	Night.end_night(s, _rng(1))
+	ok(s.missed == 1 and s.bankroll == 250 and s.installment == 1500 and s.clocks["sal"] == 2, "a missed payment costs half your cash and raises the next demand")
+	ok(s.debt == 19750 + 250 - 250, "the penalty is added and the seized cash comes off")
+	s.bankroll = 5000
+	Night.pay_sal(s)
+	Night.end_night(s, _rng(1))
+	Night.end_night(s, _rng(1))
+	ok(s.missed == 1 and s.installment >= 1000 and s.clocks.has("sal"), "a paid installment leads to the next demand")
+	s.debt = 0
+	s.installment = 0
+	s.clocks.clear()
+	Night.end_night(s, _rng(1))
+	ok(not s.clocks.has("sal"), "Sal stops once the debt is gone")
+
+
+func _test_slots() -> void:
+	ok(Slots.payout([0, 0, 0]) == 200 and Slots.payout([5, 5, 5]) == 5, "three of a kind pays by symbol")
+	ok(Slots.payout([5, 5, 1]) == 2 and Slots.payout([5, 2, 5]) == 1 and Slots.payout([1, 5, 5]) == 0, "cherries pay from the first reel only")
+	ok(Slots.payout([1, 1, 2]) == 0, "two of a kind pays nothing")
+	var tight := Slots.rtp(false)
+	var loose := Slots.rtp(true)
+	print("slots pay back: tight %.1f%%, loose %.1f%%" % [tight * 100.0, loose * 100.0])
+	ok(tight > 0.86 and tight < 0.90, "tight machines pay back 86-90%%, got %.4f" % tight)
+	ok(loose > 0.95 and loose < 0.99, "loose machines pay back 95-99%%, got %.4f" % loose)
+	var rng := _rng(3)
+	var paid := 0
+	var spins := 300000
+	for i in spins:
+		paid += Slots.payout(Slots.spin(rng, false))
+	ok(absf(float(paid) / spins - tight) < 0.03, "simulated spins match the worked-out payback")

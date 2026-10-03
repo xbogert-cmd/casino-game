@@ -11,6 +11,8 @@ var hint: Label
 
 var _bank: Label
 var _debt: Label
+var _night: Label
+var _queue: Array[String] = []
 var _heat: ProgressBar
 var _objective: Label
 var _prompt: Label
@@ -34,8 +36,10 @@ func _ready() -> void:
 	stats.add_child(col)
 	_bank = Style.label("", 28, Style.GOLD)
 	_debt = Style.label("", 18, Color(1.0, 0.5, 0.5))
+	_night = Style.label("", 16, Color(1, 1, 1, 0.75))
 	col.add_child(_bank)
 	col.add_child(_debt)
+	col.add_child(_night)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	col.add_child(row)
@@ -73,7 +77,7 @@ func _ready() -> void:
 	_prompt = _centered(root, 22, 0.5, 70)
 	_toast = _centered(root, 40, 0.22, 0)
 
-	hint = Style.label("WASD move   Shift run   Mouse look   E interact   Esc free the mouse", 16, Color(1, 1, 1, 0.6))
+	hint = Style.label("WASD move   Shift run   Mouse look   E interact   Tab phone   Esc menu", 16, Color(1, 1, 1, 0.6))
 	root.add_child(hint)
 	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.offset_left = 24
@@ -121,6 +125,9 @@ func _centered(root: Control, size: int, at: float, offset: float) -> Label:
 func update(state, objective: String, prompt: String) -> void:
 	_bank.text = "BANKROLL  " + Game.money(state.bankroll)
 	_debt.text = "DEBT  " + Game.money(state.debt)
+	_night.text = "NIGHT %d     [Tab] phone%s" % [state.night, "  (%d new)" % state.unread if state.unread > 0 else ""]
+	if state.installment > 0 and state.clocks.has("sal"):
+		_night.text += "\nSal wants %s before night %d" % [Game.money(state.installment), state.night + int(state.clocks["sal"])]
 	_heat.value = state.heat
 	_objective.text = objective
 	_prompt.text = prompt
@@ -141,7 +148,11 @@ func toast(text: String, color: Color) -> void:
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.5)
 
 
+## Shows a full-screen message. Messages that arrive while one is open wait their turn.
 func show_overlay(text: String) -> void:
+	if overlay_open:
+		_queue.append(text)
+		return
 	_overlay_text.text = text
 	_overlay.visible = true
 	overlay_open = true
@@ -151,4 +162,6 @@ func _close_overlay() -> void:
 	Game.sfx("click")
 	_overlay.visible = false
 	overlay_open = false
+	if not _queue.is_empty():
+		show_overlay(_queue.pop_front())
 	overlay_closed.emit()

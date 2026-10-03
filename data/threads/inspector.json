@@ -1,0 +1,224 @@
+{
+  "id": "inspector",
+  "objectives": [
+    {
+      "when": {
+        "flags": {
+          "insp_job_done": true,
+          "insp_2": false
+        }
+      },
+      "text": "Tell Ines Park what you saw. She is at the bar."
+    },
+    {
+      "when": {
+        "flags": {
+          "insp_1": true,
+          "insp_job_done": false
+        }
+      },
+      "text": "On the next audit night, deal it straight. Ines Park is watching Halloran."
+    },
+    {
+      "when": {
+        "flags": {
+          "insp_met": true,
+          "insp_1": false
+        }
+      },
+      "text": "Photograph the ledger on the pit stand for Ines Park."
+    },
+    {
+      "when": {
+        "flags": {
+          "insp_met": false
+        }
+      },
+      "text": "Someone is waiting for you at the bar."
+    }
+  ],
+  "jobs": [
+    {
+      "id": "insp_audit",
+      "when": {
+        "flags": {
+          "insp_1": true,
+          "insp_job_done": false
+        }
+      },
+      "order": "straight",
+      "event": "audit",
+      "success": {
+        "set": {
+          "insp_job_done": true
+        }
+      }
+    }
+  ],
+  "entries": [
+    {
+      "who": "ines",
+      "when": {
+        "flags": {
+          "insp_2": true
+        }
+      },
+      "node": "i_done"
+    },
+    {
+      "who": "ines",
+      "when": {
+        "flags": {
+          "insp_job_done": true
+        }
+      },
+      "node": "i_2"
+    },
+    {
+      "who": "ines",
+      "when": {
+        "flags": {
+          "insp_1": true
+        }
+      },
+      "node": "i_wait"
+    },
+    {
+      "who": "ines",
+      "when": {
+        "flags": {
+          "has_evidence": true
+        }
+      },
+      "node": "i_1"
+    },
+    {
+      "who": "ines",
+      "when": {
+        "flags": {
+          "insp_met": true
+        }
+      },
+      "node": "i_need"
+    },
+    {
+      "who": "ines",
+      "node": "i_0"
+    }
+  ],
+  "nodes": {
+    "i_0": {
+      "speaker": "Ines Park",
+      "text": "Don't look around. Ines Park, state gaming enforcement. Halloran runs money through these tables, and I can't prove it from the bar. There's a ledger on the pit stand. I need pictures of it. You're the only one who can get close.",
+      "effects": {
+        "set": {
+          "insp_met": true
+        }
+      },
+      "choices": [
+        {
+          "text": "I'll see what I can do."
+        },
+        {
+          "text": "You're going to get me killed."
+        }
+      ]
+    },
+    "i_need": {
+      "speaker": "Ines Park",
+      "text": "The ledger on the pit stand. Photograph it when Halloran isn't looking at you. He is always looking, so pick your moment."
+    },
+    "i_1": {
+      "speaker": "Ines Park",
+      "text": "Let me see. ...These are payouts on hands that were never dealt. He's washing money through the tables and signing for it. This is good. It isn't enough.",
+      "effects": {
+        "set": {
+          "insp_met": true,
+          "insp_1": true
+        },
+        "rel": {
+          "ines": 1
+        }
+      },
+      "choices": [
+        {
+          "text": "What else do you need?",
+          "goto": "i_wait"
+        },
+        {
+          "text": "He also has me dealing wins to a man named Castellano.",
+          "when": {
+            "flags": {
+              "house_1": true,
+              "told_castellano": false
+            }
+          },
+          "goto": "i_cast"
+        }
+      ]
+    },
+    "i_cast": {
+      "speaker": "Ines Park",
+      "text": "Castellano. That's the name I've been missing. You just made yourself very useful, and a little safer. I'll have a word with the camera room about how closely they watch you.",
+      "effects": {
+        "set": {
+          "told_castellano": true
+        },
+        "rel": {
+          "ines": 1
+        },
+        "add": {
+          "heat": -10
+        }
+      },
+      "choices": [
+        {
+          "text": "What else do you need?",
+          "goto": "i_wait"
+        }
+      ]
+    },
+    "i_wait": {
+      "speaker": "Ines Park",
+      "text": "There's an audit coming. When the auditors are on the floor, deal your table straight. Not one stacked card. I'll be watching who Halloran signals when the money stops moving."
+    },
+    "i_2": {
+      "speaker": "Ines Park",
+      "text": "You dealt it clean and he flinched at every hand. I saw who he called. That's my case. In return: a detective I know has had a quiet word with your friend Sal. You have two more nights on your payment, and the camera room has lost interest in you for now.",
+      "effects": {
+        "set": {
+          "insp_2": true
+        },
+        "add": {
+          "heat": -30
+        },
+        "clock_add": {
+          "sal": 2
+        },
+        "rel": {
+          "ines": 1
+        }
+      }
+    },
+    "i_done": {
+      "speaker": "Ines Park",
+      "text": "Keep your head down and keep dealing. When I move on Halloran, you'll know."
+    },
+    "x_sold": {
+      "speaker": "Mr. Halloran",
+      "text": "Is there. ...Sit down. No, you did right. She'll be gone by morning, and nobody will ask where. Three thousand off your tab. You and I understand each other now.",
+      "effects": {
+        "set": {
+          "sold_out_ines": true
+        },
+        "add": {
+          "debt": -3000
+        },
+        "rel": {
+          "manager": 2
+        },
+        "end": "inspector"
+      }
+    }
+  }
+}

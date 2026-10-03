@@ -4,9 +4,13 @@ extends Node
 signal talk(who: String)
 signal toast(text: String, color: Color)
 signal caught
+signal shift_over(text: String)
 
 const StoryState := preload("res://logic/story_state.gd")
 const Story := preload("res://logic/story.gd")
+const Night := preload("res://logic/night.gd")
+
+const SAVE := "user://save.json"
 
 const RATE := 22050
 
@@ -14,13 +18,20 @@ var state := StoryState.new()
 var story := Story.new()
 var rng := RandomNumberGenerator.new()
 
+## Screenshot runs start fresh and never touch the save file.
+var no_save: bool = Array(OS.get_cmdline_user_args()).any(func(a): return a.begins_with("--shot"))
+
 var _sounds := {}
 
 
 func _ready() -> void:
 	rng.randomize()
 	story.load_dir("res://data/threads")
-	state.threads.append("opening")
+	_fresh_state()
+	if not no_save and FileAccess.file_exists(SAVE):
+		var data = JSON.parse_string(FileAccess.get_file_as_string(SAVE))
+		if data is Dictionary:
+			state.from_dict(data)
 	_input_map()
 	_make_sounds()
 	var amb := AudioStreamPlayer.new()
@@ -45,6 +56,65 @@ func check_caught() -> bool:
 	sfx("lose")
 	caught.emit()
 	return true
+
+
+func _fresh_state() -> void:
+	state = StoryState.new()
+	state.threads.assign(["opening", "floor"])
+	state.plan = {"customer": "teddy", "order": "lose", "event": "quiet", "job": {}}
+
+
+func save() -> void:
+	if not no_save:
+		FileAccess.open(SAVE, FileAccess.WRITE).store_string(JSON.stringify(state.to_dict()))
+
+
+func new_game() -> void:
+	_fresh_state()
+	save()
+	get_tree().reload_current_scene.call_deferred()
+
+
+## Tonight's customer at your table.
+func customer() -> Dictionary:
+	return Night.customer(state.plan)
+
+
+## How much stacking the shoe costs tonight, as a multiplier.
+func heat_mult() -> float:
+	return Night.EVENTS[state.plan["event"]]["heat"]
+
+
+## Called when your dealing shift ends. Night one is judged by the opening story;
+## later nights are judged against Halloran's order.
+func finish_shift(was_caught: bool) -> void:
+	var t: Dictionary = state.tonight
+	t["shift"] = "done"
+	var job: Dictionary = state.plan.get("job", {})
+	if state.night == 1:
+		state.flags["shift_done"] = true
+		state.flags["customer_lost"] = t["stack"] <= 200
+		state.flags["customer_won"] = t["stack"] >= 800
+		state.flags["caught_dealing"] = was_caught
+	elif was_caught:
+		state.apply({"rel": {"manager": -1}})
+		state.apply(job.get("failure", {}))
+	else:
+		var r := Night.settle(state.plan, int(t["start"]), int(t["stack"]), int(t["stacked"]))
+		state.apply(r["effects"])
+		state.apply(job.get("success" if r["ok"] else "failure", {}))
+		shift_over.emit(r["text"])
+
+
+## Goes home: the next night is planned and saved.
+func end_night() -> void:
+	if state.night > 1 and state.tonight.get("shift", "pending") == "pending":
+		state.apply({"rel": {"manager": -1}})  # you skipped your shift
+	Night.end_night(state, rng)
+	state.plan = Night.plan(state, story, rng)
+	story.send_texts(state)
+	save()
+	get_tree().reload_current_scene.call_deferred()
 
 
 static func money(n: int) -> String:

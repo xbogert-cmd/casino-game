@@ -153,3 +153,25 @@ multiplayer, and downloaded art packs.
 - Characters. Animated people are hard to author from code. Milestone 1 uses
   simple stylized figures with little or no animation.
 - Realism. Lighting carries the look. Without art assets the props stay simple.
+
+## Milestone 2 (built 2026-10-03)
+
+- Saving to `user://save.json`, written whenever you are back in control.
+- The night loop: leave by the exit doors to end a night. Heat halves, clocks
+  move, the next night is planned and the scene reloads.
+- Night plans (`logic/night.gd`): a customer, an order from Halloran (none, lose,
+  win, straight) and an event (quiet, audit, bad wiring, high roller, promo). A
+  story thread can force parts of the plan through a job.
+- Wage of $150 per shift, plus a reward or penalty judged against the order.
+- Sal: installments with deadlines that vary, paid from the phone. A missed
+  payment costs half your cash and a penalty; three misses end the run. Clearing
+  the debt is the first good ending. Loans: $500 for $750 of debt.
+- Phone (Tab): texts, what Sal wants, pay and borrow.
+- Threads: `floor` (always on), `house` (Halloran's laundering job, ends with the
+  gold card) and `inspector` (Ines Park; you can sell her out to Halloran).
+- Slots (`logic/slots.gd`): three honest reels. Tight machines pay back 88%, loose
+  ones by the doors 97%. A regular tells you the trick, after which machines are
+  labelled.
+
+Still not built: VIP room, tools and perks, staff schedules, the vault thread,
+more games, the laptop.

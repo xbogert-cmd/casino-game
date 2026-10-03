@@ -53,6 +53,16 @@ static func should_hit(hand: Array, dealer_up: int) -> bool:
 	return Shoe.value(dealer_up) >= 7
 
 
+## Whether a customer with this style asks for another card.
+static func wants_card(hand: Array, dealer_up: int, style: String) -> bool:
+	match style:
+		"cautious":
+			return total(hand) <= 11
+		"reckless":
+			return total(hand) < 17
+	return should_hit(hand, dealer_up)
+
+
 ## The rank a cheat would put next: the best card for this hand, or the worst.
 static func pick_rank(hand: Array, good: bool) -> int:
 	var best := 0

@@ -1,0 +1,201 @@
+{
+  "id": "floor",
+  "entries": [
+    {
+      "who": "manager",
+      "when": {
+        "rel_min": {
+          "manager": 1
+        },
+        "min": {
+          "night": 2
+        },
+        "flags": {
+          "house_offered": false
+        }
+      },
+      "node": "h_offer"
+    },
+    {
+      "who": "dealer",
+      "node": "d_idle"
+    },
+    {
+      "who": "guard",
+      "when": {
+        "flags": {
+          "gold_card": true
+        }
+      },
+      "node": "g_card"
+    },
+    {
+      "who": "guard",
+      "node": "g_vip"
+    },
+    {
+      "who": "bartender",
+      "node": "b_drinks"
+    },
+    {
+      "who": "regular",
+      "when": {
+        "flags": {
+          "knows_loose_slots": true
+        }
+      },
+      "node": "r_again"
+    },
+    {
+      "who": "regular",
+      "node": "r_tip"
+    },
+    {
+      "who": "ledger",
+      "when": {
+        "flags": {
+          "has_evidence": true
+        }
+      },
+      "node": "l_taken"
+    },
+    {
+      "who": "ledger",
+      "when": {
+        "flags": {
+          "mission_given": true
+        }
+      },
+      "node": "l_look"
+    },
+    {
+      "who": "ledger",
+      "node": "l_idle"
+    }
+  ],
+  "texts": [
+    {
+      "id": "teddy_tip",
+      "when": {
+        "rel_min": {
+          "customer": 2
+        },
+        "min": {
+          "night": 2
+        }
+      },
+      "from": "Teddy Briggs",
+      "text": "It's Teddy. I said I pay what I owe. A woman has been asking around about Halloran. I gave her your name. She'll be at the bar.",
+      "effects": {
+        "start": "inspector"
+      }
+    },
+    {
+      "id": "ledger_seen",
+      "when": {
+        "flags": {
+          "has_evidence": true
+        },
+        "min": {
+          "night": 2
+        }
+      },
+      "from": "Unknown number",
+      "text": "You photographed a ledger. I would like to see those pages. I'm at the bar tonight. I.P.",
+      "effects": {
+        "start": "inspector"
+      }
+    }
+  ],
+  "nodes": {
+    "h_offer": {
+      "speaker": "Mr. Halloran",
+      "text": "You do what you're told and you don't make a show of it. I have steadier work for someone like that. Some nights a friend of the house sits at your table. He wins. You don't ask whose money it is. Each time, there's an envelope.",
+      "choices": [
+        {
+          "text": "I'm in.",
+          "effects": {
+            "set": {
+              "house_offered": true,
+              "house_1": true
+            },
+            "rel": {
+              "manager": 1
+            },
+            "start": "house"
+          }
+        },
+        {
+          "text": "I just deal cards.",
+          "effects": {
+            "set": {
+              "house_offered": true
+            }
+          }
+        }
+      ]
+    },
+    "d_idle": {
+      "speaker": "Mara",
+      "text": "Sit down if you're playing. Minimum is ten."
+    },
+    "g_vip": {
+      "speaker": "Security",
+      "text": "VIP room. Members, and staff with a gold card. You're neither."
+    },
+    "g_card": {
+      "speaker": "Security",
+      "text": "Gold card. Fine. The room is closed for a refit. Come back another night."
+    },
+    "b_drinks": {
+      "speaker": "Bartender",
+      "text": "Drinks are free while you're playing. Ever wonder why?"
+    },
+    "r_tip": {
+      "speaker": "A regular",
+      "text": "Thirty years I've played this floor. Want to know something? The machines by the door pay. They want people walking in to see somebody winning. Back here, they're tight as a drum. I play here anyway. Habit.",
+      "effects": {
+        "set": {
+          "knows_loose_slots": true
+        }
+      }
+    },
+    "r_again": {
+      "speaker": "A regular",
+      "text": "By the door, kid. I told you. Loose by the door, tight in the back."
+    },
+    "l_idle": {
+      "speaker": "",
+      "text": "A ledger on the pit stand. Not your business. Not yet."
+    },
+    "l_look": {
+      "speaker": "",
+      "text": "The pit ledger, left open. Payout lines for hands that were never dealt, each one initialled D.H. Halloran is ten feet away.",
+      "choices": [
+        {
+          "text": "Photograph the pages. (+30 heat)",
+          "goto": "l_got"
+        },
+        {
+          "text": "Leave it."
+        }
+      ]
+    },
+    "l_got": {
+      "speaker": "",
+      "text": "Eleven pages on your phone. Halloran hasn't looked up. You think.",
+      "effects": {
+        "set": {
+          "has_evidence": true
+        },
+        "add": {
+          "heat": 30
+        }
+      }
+    },
+    "l_taken": {
+      "speaker": "",
+      "text": "The ledger is where you found it. The pictures are in your pocket."
+    }
+  }
+}

@@ -1,8 +1,10 @@
 extends Node3D
-## An object you can interact with. It opens the story dialogue for `who`.
+## An object you can interact with. It runs `action` if one is set; otherwise it
+## opens the story dialogue for `who`.
 
 var who := ""
 var label := ""
+var action: Callable
 
 
 func prompt() -> String:
@@ -10,4 +12,7 @@ func prompt() -> String:
 
 
 func interact() -> void:
-	Game.talk.emit(who)
+	if action.is_valid():
+		action.call()
+	else:
+		Game.talk.emit(who)
